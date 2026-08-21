@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Adds a subtotal-based packaging fee and its WooCommerce settings tab.
+ * Adds a subtotal-based packaging fee.
  */
 final class PackagingFee implements ModuleInterface {
 
@@ -22,18 +22,8 @@ final class PackagingFee implements ModuleInterface {
 	}
 
 	public function register() {
-		add_filter( 'woocommerce_get_settings_pages', array( $this, 'register_settings_page' ) );
+		( new PackagingFeeSettings() )->register();
 		add_action( 'woocommerce_cart_calculate_fees', array( $this, 'add_packaging_fee' ) );
-	}
-
-	/**
-	 * @param array<\WC_Settings_Page> $pages Settings pages.
-	 * @return array<\WC_Settings_Page>
-	 */
-	public function register_settings_page( $pages ) {
-		$pages[] = new PackagingFeeSettings();
-
-		return $pages;
 	}
 
 	/**
@@ -103,8 +93,8 @@ final class PackagingFee implements ModuleInterface {
 	/**
 	 * Pick fee for subtotal: first tier whose max >= subtotal, else last tier.
 	 *
-	 * @param float                            $subtotal Cart product subtotal.
-	 * @param array<int, array{max: float, fee: float}> $tiers Sorted tiers.
+	 * @param float                                     $subtotal Cart product subtotal.
+	 * @param array<int, array{max: float, fee: float}> $tiers    Sorted tiers.
 	 * @return float
 	 */
 	public static function resolve_fee( $subtotal, array $tiers ) {

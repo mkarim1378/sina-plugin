@@ -1,18 +1,23 @@
 (function () {
 	'use strict';
 
-	var table = document.getElementById('sina-packaging-tiers');
+	var list = document.getElementById('sina-packaging-tiers');
 	var addButton = document.getElementById('sina-packaging-tiers-add');
 	var template = document.getElementById('sina-packaging-tier-template');
+	var switchInput = document.querySelector('.sina-packaging__switch input');
+	var switchLabel = document.querySelector('.sina-packaging__switch-label');
 
-	if (!table || !addButton || !template) {
+	if (!list || !addButton || !template) {
 		return;
 	}
 
-	var tbody = table.querySelector('tbody');
-
 	function reindexRows() {
-		Array.prototype.forEach.call(tbody.querySelectorAll('.sina-packaging-tiers__row'), function (row, index) {
+		Array.prototype.forEach.call(list.querySelectorAll('[data-tier-row]'), function (row, index) {
+			var badge = row.querySelector('.sina-packaging__tier-index');
+			if (badge) {
+				badge.textContent = String(index + 1);
+			}
+
 			Array.prototype.forEach.call(row.querySelectorAll('input[name]'), function (input) {
 				input.name = input.name.replace(/\[\d+\]|\[__INDEX__\]/, '[' + index + ']');
 			});
@@ -20,24 +25,29 @@
 	}
 
 	addButton.addEventListener('click', function () {
-		var html = template.innerHTML.replace(/__INDEX__/g, String(tbody.children.length));
-		tbody.insertAdjacentHTML('beforeend', html);
+		var html = template.innerHTML.replace(/__INDEX__/g, String(list.querySelectorAll('[data-tier-row]').length));
+		list.insertAdjacentHTML('beforeend', html);
 		reindexRows();
 	});
 
-	tbody.addEventListener('click', function (event) {
+	list.addEventListener('click', function (event) {
 		var target = event.target;
-		if (!target || !target.classList.contains('sina-packaging-tiers__remove')) {
+		if (!target || !target.closest) {
 			return;
 		}
 
-		var row = target.closest('.sina-packaging-tiers__row');
+		var removeButton = target.closest('[data-remove-tier]');
+		if (!removeButton) {
+			return;
+		}
+
+		var row = removeButton.closest('[data-tier-row]');
 		if (!row) {
 			return;
 		}
 
-		if (tbody.querySelectorAll('.sina-packaging-tiers__row').length === 1) {
-			row.querySelectorAll('input').forEach(function (input) {
+		if (list.querySelectorAll('[data-tier-row]').length === 1) {
+			Array.prototype.forEach.call(row.querySelectorAll('input'), function (input) {
 				input.value = '';
 			});
 			return;
@@ -46,4 +56,12 @@
 		row.remove();
 		reindexRows();
 	});
+
+	if (switchInput && switchLabel) {
+		switchInput.addEventListener('change', function () {
+			switchLabel.textContent = switchInput.checked ? 'فعال' : 'غیرفعال';
+		});
+	}
+
+	reindexRows();
 })();

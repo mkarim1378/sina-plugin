@@ -7,32 +7,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * WooCommerce settings tab: آکادمی سینا - بسته‌بندی
+ * WooCommerce submenu page for packaging fee settings.
  */
-final class PackagingFeeSettings extends \WC_Settings_Page {
+final class PackagingFeeSettings {
 
-	public function __construct() {
-		$this->id    = 'sina_packaging';
-		$this->label = 'آکادمی سینا - بسته‌بندی';
+	const PAGE_SLUG  = 'sina-packaging';
+	const NONCE_ACTION = 'sina_packaging_fee_save';
+	const NONCE_NAME   = 'sina_packaging_fee_nonce';
 
-		parent::__construct();
-
-		add_action( 'woocommerce_admin_field_sina_packaging_tiers', array( $this, 'output_tiers_field' ) );
+	public function register() {
+		add_action( 'admin_menu', array( $this, 'add_menu_page' ), 58 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_post_sina_packaging_fee_save', array( $this, 'handle_save' ) );
+	}
+
+	public function add_menu_page() {
+		add_submenu_page(
+			'woocommerce',
+			'آکادمی سینا - بسته‌بندی',
+			'آکادمی سینا - بسته‌بندی',
+			'manage_woocommerce',
+			self::PAGE_SLUG,
+			array( $this, 'render_page' )
+		);
 	}
 
 	/**
 	 * @param string $hook_suffix Current admin page.
 	 */
 	public function enqueue_assets( $hook_suffix ) {
-		if ( 'woocommerce_page_wc-settings' !== $hook_suffix ) {
-			return;
-		}
-
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
-
-		if ( $this->id !== $tab ) {
+		if ( 'woocommerce_page_' . self::PAGE_SLUG !== $hook_suffix ) {
 			return;
 		}
 
@@ -52,49 +56,15 @@ final class PackagingFeeSettings extends \WC_Settings_Page {
 		);
 	}
 
-	/**
-	 * @return array
-	 */
-	protected function get_settings_for_default_section() {
-		return $this->get_settings();
-	}
+	public function render_page() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
 
-	/**
-	 * @param string $section Section id (unused; single section tab).
-	 * @return array
-	 */
-	public function get_settings( $section = null ) {
-		return array(
-			array(
-				'title' => 'هزینه بسته‌بندی',
-				'type'  => 'title',
-				'desc'  => 'بر اساس جمع محصولات سبد (subtotal)، هزینه بسته‌بندی به‌صورت پلکانی به سبد اضافه می‌شود. اگر مبلغ سبد از بالاترین آستانه بیشتر باشد، هزینه آخرین سطح اعمال می‌شود.',
-				'id'    => 'sina_packaging_fee_title',
-			),
-			array(
-				'title'   => 'فعال بودن',
-				'desc'    => 'افزودن هزینه بسته‌بندی به سبد خرید',
-				'id'      => PackagingFee::OPTION_ENABLED,
-				'default' => 'no',
-				'type'    => 'checkbox',
-			),
-			array(
-				'type' => 'sina_packaging_tiers',
-				'id'   => PackagingFee::OPTION_TIERS,
-			),
-			array(
-				'type' => 'sectionend',
-				'id'   => 'sina_packaging_fee_title',
-			),
-		);
-	}
-
-	/**
-	 * @param array $setting Field config.
-	 */
-	public function output_tiers_field( $setting ) {
+		$enabled  = 'yes' === get_option( PackagingFee::OPTION_ENABLED, 'no' );
 		$tiers    = PackagingFee::get_tiers();
 		$currency = get_woocommerce_currency_symbol();
+		$saved    = isset( $_GET['saved'] ) && '1' === $_GET['saved']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		if ( empty( $tiers ) ) {
 			$tiers = array(
@@ -106,95 +76,161 @@ final class PackagingFeeSettings extends \WC_Settings_Page {
 		}
 
 		?>
-		<tr valign="top">
-			<th scope="row" class="titledesc">
-				<label>سطوح هزینه</label>
-			</th>
-			<td class="forminp">
-				<table class="widefat striped sina-packaging-tiers" id="sina-packaging-tiers">
-					<thead>
-						<tr>
-							<th>تا مبلغ سبد (آستانه) <?php echo esc_html( $currency ); ?></th>
-							<th>هزینه بسته‌بندی <?php echo esc_html( $currency ); ?></th>
-							<th class="sina-packaging-tiers__actions"></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php foreach ( $tiers as $index => $tier ) : ?>
-							<tr class="sina-packaging-tiers__row">
-								<td>
-									<input
-										type="number"
-										min="0"
-										step="any"
-										name="<?php echo esc_attr( PackagingFee::OPTION_TIERS ); ?>[<?php echo esc_attr( (string) $index ); ?>][max]"
-										value="<?php echo esc_attr( (string) $tier['max'] ); ?>"
-										class="sina-packaging-tiers__max"
-									/>
-								</td>
-								<td>
-									<input
-										type="number"
-										min="0"
-										step="any"
-										name="<?php echo esc_attr( PackagingFee::OPTION_TIERS ); ?>[<?php echo esc_attr( (string) $index ); ?>][fee]"
-										value="<?php echo esc_attr( (string) $tier['fee'] ); ?>"
-										class="sina-packaging-tiers__fee"
-									/>
-								</td>
-								<td class="sina-packaging-tiers__actions">
-									<button type="button" class="button sina-packaging-tiers__remove">حذف</button>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-					</tbody>
-				</table>
-				<p>
-					<button type="button" class="button" id="sina-packaging-tiers-add">افزودن سطح</button>
-				</p>
-				<p class="description">
-					سطوح را از کم به زیاد وارد کنید. برای هر بازه، اگر جمع سبد «تا» آستانه باشد، هزینه همان سطح اعمال می‌شود.
-				</p>
-				<template id="sina-packaging-tier-template">
-					<tr class="sina-packaging-tiers__row">
-						<td>
-							<input type="number" min="0" step="any" name="<?php echo esc_attr( PackagingFee::OPTION_TIERS ); ?>[__INDEX__][max]" value="" class="sina-packaging-tiers__max" />
-						</td>
-						<td>
-							<input type="number" min="0" step="any" name="<?php echo esc_attr( PackagingFee::OPTION_TIERS ); ?>[__INDEX__][fee]" value="" class="sina-packaging-tiers__fee" />
-						</td>
-						<td class="sina-packaging-tiers__actions">
-							<button type="button" class="button sina-packaging-tiers__remove">حذف</button>
-						</td>
-					</tr>
-				</template>
-			</td>
-		</tr>
+		<div class="wrap sina-packaging">
+			<div class="sina-packaging__shell">
+				<header class="sina-packaging__hero">
+					<div class="sina-packaging__hero-text">
+						<p class="sina-packaging__eyebrow">ووکامرس · آکادمی سینا</p>
+						<h1 class="sina-packaging__title">هزینه بسته‌بندی</h1>
+						<p class="sina-packaging__lead">
+							بر اساس جمع محصولات سبد، هزینه بسته‌بندی را در چند سطح تعریف کنید.
+							اگر مبلغ سبد از بالاترین آستانه بیشتر باشد، هزینهٔ آخرین سطح اعمال می‌شود.
+						</p>
+					</div>
+					<div class="sina-packaging__hero-badge" aria-hidden="true">
+						<span class="sina-packaging__hero-badge-dot"></span>
+						<span>پلکانی</span>
+					</div>
+				</header>
+
+				<?php if ( $saved ) : ?>
+					<div class="sina-packaging__notice sina-packaging__notice--success" role="status">
+						تنظیمات با موفقیت ذخیره شد.
+					</div>
+				<?php endif; ?>
+
+				<form
+					class="sina-packaging__form"
+					method="post"
+					action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+				>
+					<input type="hidden" name="action" value="sina_packaging_fee_save" />
+					<?php wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME ); ?>
+
+					<section class="sina-packaging__card">
+						<div class="sina-packaging__card-head">
+							<div>
+								<h2 class="sina-packaging__card-title">وضعیت</h2>
+								<p class="sina-packaging__card-desc">فعال یا غیرفعال کردن افزودن هزینه به سبد</p>
+							</div>
+							<label class="sina-packaging__switch">
+								<input
+									type="checkbox"
+									name="<?php echo esc_attr( PackagingFee::OPTION_ENABLED ); ?>"
+									value="yes"
+									<?php checked( $enabled ); ?>
+								/>
+								<span class="sina-packaging__switch-ui" aria-hidden="true"></span>
+								<span class="sina-packaging__switch-label"><?php echo $enabled ? 'فعال' : 'غیرفعال'; ?></span>
+							</label>
+						</div>
+					</section>
+
+					<section class="sina-packaging__card">
+						<div class="sina-packaging__card-head">
+							<div>
+								<h2 class="sina-packaging__card-title">سطوح هزینه</h2>
+								<p class="sina-packaging__card-desc">
+									برای هر سطح، «تا مبلغ سبد» و «هزینه بسته‌بندی» را مشخص کنید.
+								</p>
+							</div>
+							<button type="button" class="sina-packaging__btn sina-packaging__btn--ghost" id="sina-packaging-tiers-add">
+								افزودن سطح
+							</button>
+						</div>
+
+						<div class="sina-packaging__tiers" id="sina-packaging-tiers">
+							<?php foreach ( $tiers as $index => $tier ) : ?>
+								<?php $this->render_tier_row( (int) $index, $tier, $currency ); ?>
+							<?php endforeach; ?>
+						</div>
+
+						<template id="sina-packaging-tier-template">
+							<?php
+							$this->render_tier_row(
+								'__INDEX__',
+								array(
+									'max' => '',
+									'fee' => '',
+								),
+								$currency
+							);
+							?>
+						</template>
+					</section>
+
+					<div class="sina-packaging__footer">
+						<button type="submit" class="sina-packaging__btn sina-packaging__btn--primary">
+							ذخیره تنظیمات
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
 		<?php
 	}
 
-	public function save() {
-		$settings = array_values(
-			array_filter(
-				$this->get_settings(),
-				static function ( $setting ) {
-					return ! isset( $setting['type'] ) || 'sina_packaging_tiers' !== $setting['type'];
-				}
-			)
-		);
-
-		\WC_Admin_Settings::save_fields( $settings );
-		$this->save_tiers();
-
-		/**
-		 * Fires after packaging fee settings are saved.
-		 */
-		do_action( 'woocommerce_update_options_' . $this->id );
+	/**
+	 * @param int|string           $index    Row index or placeholder.
+	 * @param array{max:mixed,fee:mixed} $tier Tier values.
+	 * @param string               $currency Currency symbol.
+	 */
+	private function render_tier_row( $index, array $tier, $currency ) {
+		$index_attr = (string) $index;
+		?>
+		<article class="sina-packaging__tier" data-tier-row>
+			<div class="sina-packaging__tier-index" aria-hidden="true"></div>
+			<div class="sina-packaging__tier-fields">
+				<label class="sina-packaging__field">
+					<span class="sina-packaging__field-label">تا مبلغ سبد</span>
+					<span class="sina-packaging__field-control">
+						<input
+							type="number"
+							min="0"
+							step="any"
+							inputmode="decimal"
+							name="<?php echo esc_attr( PackagingFee::OPTION_TIERS ); ?>[<?php echo esc_attr( $index_attr ); ?>][max]"
+							value="<?php echo esc_attr( (string) $tier['max'] ); ?>"
+							placeholder="مثلاً ۵۰۰۰۰۰"
+						/>
+						<span class="sina-packaging__field-suffix"><?php echo esc_html( $currency ); ?></span>
+					</span>
+				</label>
+				<span class="sina-packaging__tier-arrow" aria-hidden="true">←</span>
+				<label class="sina-packaging__field">
+					<span class="sina-packaging__field-label">هزینه بسته‌بندی</span>
+					<span class="sina-packaging__field-control">
+						<input
+							type="number"
+							min="0"
+							step="any"
+							inputmode="decimal"
+							name="<?php echo esc_attr( PackagingFee::OPTION_TIERS ); ?>[<?php echo esc_attr( $index_attr ); ?>][fee]"
+							value="<?php echo esc_attr( (string) $tier['fee'] ); ?>"
+							placeholder="مثلاً ۲۰۰۰۰"
+						/>
+						<span class="sina-packaging__field-suffix"><?php echo esc_html( $currency ); ?></span>
+					</span>
+				</label>
+			</div>
+			<button type="button" class="sina-packaging__tier-remove" data-remove-tier title="حذف سطح">
+				حذف
+			</button>
+		</article>
+		<?php
 	}
 
-	private function save_tiers() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- WooCommerce settings form nonce.
-		$raw = isset( $_POST[ PackagingFee::OPTION_TIERS ] ) ? wp_unslash( $_POST[ PackagingFee::OPTION_TIERS ] ) : array();
+	public function handle_save() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to save these settings.', 'sina-plugin' ) );
+		}
+
+		check_admin_referer( self::NONCE_ACTION, self::NONCE_NAME );
+
+		$enabled = isset( $_POST[ PackagingFee::OPTION_ENABLED ] ) && 'yes' === wp_unslash( $_POST[ PackagingFee::OPTION_ENABLED ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		update_option( PackagingFee::OPTION_ENABLED, $enabled ? 'yes' : 'no', false );
+
+		$raw = isset( $_POST[ PackagingFee::OPTION_TIERS ] ) ? wp_unslash( $_POST[ PackagingFee::OPTION_TIERS ] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		if ( ! is_array( $raw ) ) {
 			$raw = array();
@@ -228,5 +264,16 @@ final class PackagingFeeSettings extends \WC_Settings_Page {
 		);
 
 		update_option( PackagingFee::OPTION_TIERS, array_values( $tiers ), false );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'  => self::PAGE_SLUG,
+					'saved' => '1',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
 	}
 }
