@@ -1,0 +1,13 @@
+.sina-packaging-tiers {
+	max-width: 720px;
+}
+
+.sina-packaging-tiers input[type="number"] {
+	width: 100%;
+	max-width: 220px;
+}
+
+.sina-packaging-tiers__actions {
+	width: 1%;
+	white-space: nowrap;
+}

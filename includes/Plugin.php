@@ -7,6 +7,7 @@ use Sina_Plugin\Modules\Auth;
 use Sina_Plugin\Modules\Editor;
 use Sina_Plugin\Modules\Translations;
 use Sina_Plugin\Modules\WooCommerce\Checkout;
+use Sina_Plugin\Modules\WooCommerce\PackagingFee;
 use Sina_Plugin\Modules\WooCommerce\VariationPrice;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -36,6 +37,7 @@ final class Plugin {
 		Translations::class,
 		VariationPrice::class,
 		Checkout::class,
+		PackagingFee::class,
 	);
 
 	/**
