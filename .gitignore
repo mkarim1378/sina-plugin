@@ -1,0 +1,11 @@
+# Hidden files/dirs (.cursor, .env, .idea, .vscode, .DS_Store, etc.)
+.*
+!.gitignore
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Misc
+*.code-workspace
+*.zip
