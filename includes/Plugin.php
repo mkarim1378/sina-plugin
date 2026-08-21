@@ -3,6 +3,7 @@
 namespace Sina_Plugin;
 
 use Sina_Plugin\Contracts\ModuleInterface;
+use Sina_Plugin\Modules\AdminFont;
 use Sina_Plugin\Modules\Auth;
 use Sina_Plugin\Modules\Editor;
 use Sina_Plugin\Modules\Translations;
@@ -32,6 +33,7 @@ final class Plugin {
 	 * @var array<class-string<ModuleInterface>>
 	 */
 	private $modules = array(
+		AdminFont::class,
 		Auth::class,
 		Editor::class,
 		Translations::class,

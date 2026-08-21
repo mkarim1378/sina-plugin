@@ -1,0 +1,133 @@
+/* Farhang admin typography — icon fonts kept intact */
+
+body.wp-admin,
+body.login,
+#wpadminbar {
+	font-family: "Farhang", Tahoma, Arial, sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body.wp-admin,
+body.login {
+	font-size: 14px;
+}
+
+body.wp-admin #wpadminbar *,
+body.wp-admin #adminmenu,
+body.wp-admin #adminmenu a,
+body.wp-admin #adminmenu .wp-submenu a,
+body.wp-admin #wpbody,
+body.wp-admin #wpbody-content,
+body.wp-admin .wrap,
+body.wp-admin .wrap h1,
+body.wp-admin .wrap h2,
+body.wp-admin .wrap h3,
+body.wp-admin p,
+body.wp-admin label,
+body.wp-admin input,
+body.wp-admin select,
+body.wp-admin textarea,
+body.wp-admin button,
+body.wp-admin .button,
+body.wp-admin .page-title-action,
+body.wp-admin .form-table th,
+body.wp-admin .form-table td,
+body.wp-admin .wp-core-ui,
+body.wp-admin .wp-core-ui .button,
+body.wp-admin .wp-core-ui .button-primary,
+body.wp-admin .wp-core-ui .button-secondary,
+body.wp-admin .notice,
+body.wp-admin .media-frame,
+body.wp-admin .media-modal,
+body.wp-admin .woocommerce,
+body.wp-admin .wc-admin-header,
+body.login form,
+body.login label,
+body.login input,
+body.login .button {
+	font-family: "Farhang", Tahoma, Arial, sans-serif !important;
+}
+
+body.wp-admin strong,
+body.wp-admin b,
+body.wp-admin .wrap h1,
+body.wp-admin .wrap h2,
+body.wp-admin #adminmenu .wp-submenu-head,
+body.wp-admin #adminmenu li.wp-menu-separator {
+	font-weight: 700;
+}
+
+body.wp-admin #adminmenu a,
+body.wp-admin .form-table th {
+	font-weight: 600;
+}
+
+/* Keep system monospace for code */
+body.wp-admin code,
+body.wp-admin kbd,
+body.wp-admin pre,
+body.wp-admin samp,
+body.wp-admin tt,
+body.wp-admin .code,
+body.wp-admin textarea.code {
+	font-family: Consolas, Monaco, monospace !important;
+}
+
+/*
+ * Icon fonts — restore original families so glyphs do not break.
+ */
+body.wp-admin .dashicons,
+body.wp-admin .dashicons-before:before,
+body.wp-admin .wp-menu-image:before,
+body.wp-admin #adminmenu .wp-menu-image:before,
+body.wp-admin #adminmenu div.wp-menu-image:before,
+body.wp-admin #collapse-button .collapse-button-icon:before,
+body.wp-admin .welcome-icon:before,
+body.wp-admin .notice-dismiss:before,
+body.wp-admin .postbox .handlediv .toggle-indicator:before,
+body.wp-admin .meta-box-sortables .postbox .handlediv:before,
+body.wp-admin .accordion-section-title:after,
+body.wp-admin .screen-meta-toggle .show-settings:before,
+body.login #login h1 a {
+	font-family: dashicons !important;
+	font-weight: normal !important;
+	font-style: normal !important;
+}
+
+#wpadminbar .ab-icon,
+#wpadminbar .ab-item:before,
+#wpadminbar > #wp-toolbar > #wp-admin-bar-root-default .ab-icon,
+#wpadminbar .ab-empty-item:before {
+	font-family: dashicons !important;
+	font-weight: normal !important;
+	font-style: normal !important;
+}
+
+/* WooCommerce menu / admin icons */
+body.wp-admin #adminmenu #toplevel_page_woocommerce .wp-menu-image:before,
+body.wp-admin #adminmenu #menu-posts-product .wp-menu-image:before,
+body.wp-admin .woocommerce-layout__activity-panel-tab::before,
+body.wp-admin .wc-action-button::after,
+body.wp-admin .wc-action-button::before {
+	font-family: dashicons !important;
+	font-weight: normal !important;
+}
+
+/* TinyMCE / editor chrome icons */
+body.wp-admin .mce-ico,
+body.wp-admin .qt-dfw,
+body.wp-admin .wp-editor-area + .mce-container .mce-ico {
+	font-family: tinymce, TinyMCE, dashicons !important;
+	font-weight: normal !important;
+}
+
+/* Generic icon-font class patterns used by plugins */
+body.wp-admin [class^="dashicons-"]:before,
+body.wp-admin [class*=" dashicons-"]:before,
+body.wp-admin i.dashicons,
+body.wp-admin span.dashicons {
+	font-family: dashicons !important;
+	font-weight: normal !important;
+	font-style: normal !important;
+}
