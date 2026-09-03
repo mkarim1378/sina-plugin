@@ -344,6 +344,49 @@
 	background: #0c5c48;
 }
 
+.sina-packaging__methods {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+	margin-bottom: 16px;
+}
+
+.sina-packaging__method {
+	padding: 22px;
+	border: 1px solid var(--sina-pack-line);
+	border-radius: var(--sina-pack-radius);
+	background: var(--sina-pack-surface);
+	box-shadow: var(--sina-pack-shadow);
+	transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.sina-packaging__method.is-disabled {
+	opacity: 0.62;
+}
+
+.sina-packaging__method .sina-packaging__card-head {
+	margin-bottom: 16px;
+}
+
+.sina-packaging__costs {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+.sina-packaging__free {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 42px;
+	padding: 0 14px;
+	border-radius: 12px;
+	background: var(--sina-pack-accent-soft);
+	color: var(--sina-pack-accent);
+	font-size: 13px;
+	font-weight: 800;
+}
+
 .sina-packaging__footer {
 	display: flex;
 	justify-content: flex-start;
@@ -360,6 +403,11 @@
 	.sina-packaging__tier {
 		flex-direction: column;
 		align-items: stretch;
+	}
+
+	.sina-packaging__methods,
+	.sina-packaging__costs {
+		grid-template-columns: 1fr;
 	}
 
 	.sina-packaging__tier,

@@ -1,0 +1,247 @@
+<?php
+
+namespace Sina_Plugin\Modules\WooCommerce;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * WooCommerce submenu page for shipping and packaging settings.
+ */
+final class ShippingSettings {
+
+	const PAGE_SLUG    = 'sina-packaging';
+	const NONCE_ACTION = 'sina_shipping_save';
+	const NONCE_NAME   = 'sina_shipping_nonce';
+
+	public function register() {
+		add_action( 'admin_menu', array( $this, 'add_menu_page' ), 58 );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_post_sina_shipping_save', array( $this, 'handle_save' ) );
+	}
+
+	public function add_menu_page() {
+		add_submenu_page(
+			'woocommerce',
+			'آکادمی سینا - ارسال',
+			'آکادمی سینا - ارسال',
+			'manage_woocommerce',
+			self::PAGE_SLUG,
+			array( $this, 'render_page' )
+		);
+	}
+
+	/**
+	 * @param string $hook_suffix Current admin page.
+	 */
+	public function enqueue_assets( $hook_suffix ) {
+		if ( 'woocommerce_page_' . self::PAGE_SLUG !== $hook_suffix ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'sina-packaging-fee-admin',
+			SINA_PLUGIN_URL . 'assets/css/admin-packaging-fee.css',
+			array(),
+			SINA_PLUGIN_VERSION
+		);
+
+		wp_enqueue_script(
+			'sina-packaging-fee-admin',
+			SINA_PLUGIN_URL . 'assets/js/admin-packaging-fee.js',
+			array(),
+			SINA_PLUGIN_VERSION,
+			true
+		);
+	}
+
+	public function render_page() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		$methods  = Shipping::get_methods();
+		$currency = get_woocommerce_currency_symbol();
+		$saved    = isset( $_GET['saved'] ) && '1' === $_GET['saved']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		?>
+		<div class="wrap sina-packaging">
+			<div class="sina-packaging__shell">
+				<header class="sina-packaging__hero">
+					<div class="sina-packaging__hero-text">
+						<p class="sina-packaging__eyebrow">ووکامرس · آکادمی سینا</p>
+						<h1 class="sina-packaging__title">ارسال و بسته‌بندی</h1>
+						<p class="sina-packaging__lead">
+							روش‌های ارسال را همین‌جا مدیریت کنید؛ بدون نیاز به تنظیمات حمل ووکامرس.
+							هر روش فعال در تسویه حساب نمایش داده می‌شود و هزینه بسته‌بندی همان روش به سبد اضافه می‌شود.
+						</p>
+					</div>
+					<div class="sina-packaging__hero-badge" aria-hidden="true">
+						<span class="sina-packaging__hero-badge-dot"></span>
+						<span>مستقل از ووکامرس</span>
+					</div>
+				</header>
+
+				<?php if ( $saved ) : ?>
+					<div class="sina-packaging__notice sina-packaging__notice--success" role="status">
+						تنظیمات با موفقیت ذخیره شد.
+					</div>
+				<?php endif; ?>
+
+				<form
+					class="sina-packaging__form"
+					method="post"
+					action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+				>
+					<input type="hidden" name="action" value="sina_shipping_save" />
+					<?php wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME ); ?>
+
+					<section class="sina-packaging__methods" aria-label="روش‌های ارسال">
+						<?php foreach ( $methods as $key => $method ) : ?>
+							<?php $this->render_method_card( $key, $method, $currency ); ?>
+						<?php endforeach; ?>
+					</section>
+
+					<div class="sina-packaging__footer">
+						<button type="submit" class="sina-packaging__btn sina-packaging__btn--primary">
+							ذخیره تنظیمات
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * @param string                                                                                 $key      Method key.
+	 * @param array{label: string, enabled: bool, shipping_cost: float, packaging_cost: float} $method   Method values.
+	 * @param string                                                                                 $currency Currency symbol.
+	 */
+	private function render_method_card( $key, array $method, $currency ) {
+		$is_pickup = Shipping::PICKUP_KEY === $key;
+		$enabled   = ! empty( $method['enabled'] );
+		$base      = Shipping::OPTION_METHODS . '[' . $key . ']';
+		?>
+		<article
+			class="sina-packaging__method<?php echo $enabled ? '' : ' is-disabled'; ?>"
+			data-shipping-method
+		>
+			<div class="sina-packaging__card-head">
+				<div>
+					<h2 class="sina-packaging__card-title"><?php echo esc_html( $method['label'] ); ?></h2>
+					<p class="sina-packaging__card-desc">
+						<?php
+						echo $is_pickup
+							? 'هزینه ارسال این گزینه همیشه رایگان است.'
+							: 'هزینه ارسال و بسته‌بندی این روش را جداگانه تنظیم کنید.';
+						?>
+					</p>
+				</div>
+				<label class="sina-packaging__switch">
+					<input
+						type="checkbox"
+						name="<?php echo esc_attr( $base ); ?>[enabled]"
+						value="yes"
+						<?php checked( $enabled ); ?>
+					/>
+					<span class="sina-packaging__switch-ui" aria-hidden="true"></span>
+					<span class="sina-packaging__switch-label"><?php echo $enabled ? 'فعال' : 'غیرفعال'; ?></span>
+				</label>
+			</div>
+
+			<div class="sina-packaging__costs">
+				<label class="sina-packaging__field">
+					<span class="sina-packaging__field-label">هزینه ارسال</span>
+					<?php if ( $is_pickup ) : ?>
+						<span class="sina-packaging__free">رایگان</span>
+					<?php else : ?>
+						<span class="sina-packaging__field-control">
+							<input
+								type="number"
+								min="0"
+								step="any"
+								inputmode="decimal"
+								name="<?php echo esc_attr( $base ); ?>[shipping_cost]"
+								value="<?php echo esc_attr( $this->format_amount( $method['shipping_cost'] ) ); ?>"
+								placeholder="مثلاً ۵۰۰۰۰"
+							/>
+							<span class="sina-packaging__field-suffix"><?php echo esc_html( $currency ); ?></span>
+						</span>
+					<?php endif; ?>
+				</label>
+				<label class="sina-packaging__field">
+					<span class="sina-packaging__field-label">هزینه بسته‌بندی</span>
+					<span class="sina-packaging__field-control">
+						<input
+							type="number"
+							min="0"
+							step="any"
+							inputmode="decimal"
+							name="<?php echo esc_attr( $base ); ?>[packaging_cost]"
+							value="<?php echo esc_attr( $this->format_amount( $method['packaging_cost'] ) ); ?>"
+							placeholder="مثلاً ۲۰۰۰۰"
+						/>
+						<span class="sina-packaging__field-suffix"><?php echo esc_html( $currency ); ?></span>
+					</span>
+				</label>
+			</div>
+		</article>
+		<?php
+	}
+
+	/**
+	 * @param float $amount Amount.
+	 * @return string
+	 */
+	private function format_amount( $amount ) {
+		if ( (float) $amount <= 0 ) {
+			return '';
+		}
+
+		return (string) $amount;
+	}
+
+	public function handle_save() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to save these settings.', 'sina-plugin' ) );
+		}
+
+		check_admin_referer( self::NONCE_ACTION, self::NONCE_NAME );
+
+		$raw = isset( $_POST[ Shipping::OPTION_METHODS ] ) ? wp_unslash( $_POST[ Shipping::OPTION_METHODS ] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+		if ( ! is_array( $raw ) ) {
+			$raw = array();
+		}
+
+		$methods = array();
+
+		foreach ( array_keys( Shipping::METHOD_LABELS ) as $key ) {
+			$row = isset( $raw[ $key ] ) && is_array( $raw[ $key ] ) ? $raw[ $key ] : array();
+
+			$packaging = isset( $row['packaging_cost'] ) ? $row['packaging_cost'] : '';
+			$shipping  = isset( $row['shipping_cost'] ) ? $row['shipping_cost'] : '';
+
+			$methods[ $key ] = array(
+				'enabled'         => isset( $row['enabled'] ) && 'yes' === $row['enabled'],
+				'shipping_cost'   => Shipping::PICKUP_KEY === $key ? 0.0 : (float) wc_format_decimal( $shipping ),
+				'packaging_cost'  => (float) wc_format_decimal( $packaging ),
+			);
+		}
+
+		update_option( Shipping::OPTION_METHODS, $methods, false );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'  => self::PAGE_SLUG,
+					'saved' => '1',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+}
