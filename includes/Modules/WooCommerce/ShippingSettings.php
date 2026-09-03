@@ -19,6 +19,28 @@ final class ShippingSettings {
 		add_action( 'admin_menu', array( $this, 'add_menu_page' ), 58 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_post_sina_shipping_save', array( $this, 'handle_save' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( SINA_PLUGIN_FILE ), array( $this, 'add_settings_link' ) );
+	}
+
+	/**
+	 * @param array<string, string> $links Plugin row action links.
+	 * @return array<string, string>
+	 */
+	public function add_settings_link( $links ) {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return $links;
+		}
+
+		$url = admin_url( 'admin.php?page=' . self::PAGE_SLUG );
+
+		$links = array_merge(
+			array(
+				'settings' => '<a href="' . esc_url( $url ) . '">تنظیمات</a>',
+			),
+			$links
+		);
+
+		return $links;
 	}
 
 	public function add_menu_page() {
