@@ -370,8 +370,53 @@
 
 .sina-packaging__costs {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: 1.35fr 1fr;
 	gap: 12px;
+	align-items: start;
+}
+
+.sina-packaging__field--shipping {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.sina-packaging__cost-types {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.sina-packaging__cost-type {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	padding: 8px 12px;
+	border: 1px solid var(--sina-pack-line);
+	border-radius: 12px;
+	background: #faf9f6;
+	color: var(--sina-pack-muted);
+	font-size: 13px;
+	font-weight: 700;
+	cursor: pointer;
+	transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.sina-packaging__cost-type input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.sina-packaging__cost-type.is-selected {
+	border-color: var(--sina-pack-accent);
+	background: var(--sina-pack-accent-soft);
+	color: var(--sina-pack-accent);
+}
+
+.sina-packaging__amount.is-hidden {
+	display: none;
 }
 
 .sina-packaging__free {

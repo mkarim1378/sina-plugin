@@ -19,6 +19,10 @@ final class Shipping implements ModuleInterface {
 	const FEE_NAME       = 'هزینه بسته‌بندی';
 	const PICKUP_KEY     = 'pickup';
 
+	const COST_TYPE_FREE    = 'free';
+	const COST_TYPE_COLLECT = 'collect';
+	const COST_TYPE_AMOUNT  = 'amount';
+
 	/**
 	 * @var array<string, string>
 	 */
@@ -27,6 +31,15 @@ final class Shipping implements ModuleInterface {
 		'tipax'  => 'تیپاکس',
 		'chapar' => 'چاپار',
 		'pickup' => 'تحویل حضوری',
+	);
+
+	/**
+	 * @var array<string, string>
+	 */
+	const COST_TYPE_LABELS = array(
+		self::COST_TYPE_FREE    => 'رایگان',
+		self::COST_TYPE_COLLECT => 'پس کرایه',
+		self::COST_TYPE_AMOUNT  => 'مبلغ مشخص',
 	);
 
 	public function is_enabled() {
@@ -42,6 +55,8 @@ final class Shipping implements ModuleInterface {
 		add_filter( 'woocommerce_package_rates', array( $this, 'replace_package_rates' ), 100, 2 );
 		add_filter( 'woocommerce_shipping_chosen_method', array( $this, 'prefer_non_pickup_default' ), 10, 3 );
 		add_filter( 'woocommerce_cart_needs_shipping_address', array( $this, 'maybe_skip_shipping_address' ) );
+		add_filter( 'woocommerce_cart_shipping_method_full_label', array( $this, 'filter_shipping_method_label' ), 10, 2 );
+		add_filter( 'woocommerce_order_shipping_to_display', array( $this, 'filter_order_shipping_display' ), 10, 2 );
 		add_action( 'woocommerce_cart_calculate_fees', array( $this, 'add_packaging_fee' ) );
 	}
 
@@ -87,9 +102,10 @@ final class Shipping implements ModuleInterface {
 				continue;
 			}
 
-			$rate_id = self::rate_id( $key );
-			$cost    = self::PICKUP_KEY === $key ? 0.0 : (float) $method['shipping_cost'];
-			$rate    = new \WC_Shipping_Rate(
+			$cost_type = self::normalize_cost_type( $method['cost_type'], $key );
+			$cost      = self::COST_TYPE_AMOUNT === $cost_type ? (float) $method['shipping_cost'] : 0.0;
+			$rate_id   = self::rate_id( $key );
+			$rate      = new \WC_Shipping_Rate(
 				$rate_id,
 				$method['label'],
 				$cost,
@@ -98,10 +114,68 @@ final class Shipping implements ModuleInterface {
 				0
 			);
 			$rate->add_meta_data( 'sina_method', $key );
+			$rate->add_meta_data( 'sina_cost_type', $cost_type );
 			$built[ $rate_id ] = $rate;
 		}
 
 		return $built;
+	}
+
+	/**
+	 * Show رایگان / پس کرایه / مبلغ instead of WooCommerce's generic free label.
+	 *
+	 * @param string            $label  Full shipping method label.
+	 * @param \WC_Shipping_Rate $method Shipping rate.
+	 * @return string
+	 */
+	public function filter_shipping_method_label( $label, $method ) {
+		if ( ! $method instanceof \WC_Shipping_Rate ) {
+			return $label;
+		}
+
+		$cost_type = $method->get_meta( 'sina_cost_type' );
+
+		if ( ! is_string( $cost_type ) || '' === $cost_type ) {
+			$key = $method->get_meta( 'sina_method' );
+
+			if ( is_string( $key ) && '' !== $key ) {
+				$methods   = self::get_methods();
+				$cost_type = isset( $methods[ $key ]['cost_type'] ) ? $methods[ $key ]['cost_type'] : '';
+			}
+		}
+
+		if ( ! is_string( $cost_type ) || ! isset( self::COST_TYPE_LABELS[ $cost_type ] ) ) {
+			return $label;
+		}
+
+		$name = $method->get_label();
+
+		if ( self::COST_TYPE_AMOUNT === $cost_type ) {
+			return $name . ': ' . wc_price( (float) $method->get_cost() );
+		}
+
+		return $name . ': ' . self::COST_TYPE_LABELS[ $cost_type ];
+	}
+
+	/**
+	 * Keep پس کرایه visible on orders/emails instead of Free.
+	 *
+	 * @param string    $shipping Formatted shipping total HTML.
+	 * @param \WC_Order $order    Order.
+	 * @return string
+	 */
+	public function filter_order_shipping_display( $shipping, $order ) {
+		if ( ! $order instanceof \WC_Order ) {
+			return $shipping;
+		}
+
+		foreach ( $order->get_shipping_methods() as $item ) {
+			if ( self::COST_TYPE_COLLECT === $item->get_meta( 'sina_cost_type' ) ) {
+				return esc_html( self::COST_TYPE_LABELS[ self::COST_TYPE_COLLECT ] );
+			}
+		}
+
+		return $shipping;
 	}
 
 	/**
@@ -174,10 +248,10 @@ final class Shipping implements ModuleInterface {
 	}
 
 	/**
-	 * @return array<string, array{label: string, enabled: bool, shipping_cost: float, packaging_cost: float}>
+	 * @return array<string, array{label: string, enabled: bool, cost_type: string, shipping_cost: float, packaging_cost: float}>
 	 */
 	public static function get_methods() {
-		$stored = get_option( self::OPTION_METHODS, null );
+		$stored    = get_option( self::OPTION_METHODS, null );
 		$has_saved = is_array( $stored );
 
 		if ( ! $has_saved ) {
@@ -187,17 +261,55 @@ final class Shipping implements ModuleInterface {
 		$methods = array();
 
 		foreach ( self::METHOD_LABELS as $key => $label ) {
-			$row = isset( $stored[ $key ] ) && is_array( $stored[ $key ] ) ? $stored[ $key ] : array();
+			$row  = isset( $stored[ $key ] ) && is_array( $stored[ $key ] ) ? $stored[ $key ] : array();
+			$cost = self::PICKUP_KEY === $key ? 0.0 : (float) ( isset( $row['shipping_cost'] ) ? $row['shipping_cost'] : 0 );
 
 			$methods[ $key ] = array(
 				'label'          => $label,
 				'enabled'        => $has_saved ? ! empty( $row['enabled'] ) : true,
-				'shipping_cost'  => self::PICKUP_KEY === $key ? 0.0 : (float) ( isset( $row['shipping_cost'] ) ? $row['shipping_cost'] : 0 ),
+				'cost_type'      => self::resolve_cost_type( $row, $key, $cost ),
+				'shipping_cost'  => $cost,
 				'packaging_cost' => (float) ( isset( $row['packaging_cost'] ) ? $row['packaging_cost'] : 0 ),
 			);
 		}
 
 		return $methods;
+	}
+
+	/**
+	 * @param string $type Cost type.
+	 * @param string $key  Method key.
+	 * @return string
+	 */
+	public static function normalize_cost_type( $type, $key ) {
+		if ( self::PICKUP_KEY === $key ) {
+			return self::COST_TYPE_FREE;
+		}
+
+		if ( is_string( $type ) && isset( self::COST_TYPE_LABELS[ $type ] ) ) {
+			return $type;
+		}
+
+		return self::COST_TYPE_FREE;
+	}
+
+	/**
+	 * @param array  $row  Stored method row.
+	 * @param string $key  Method key.
+	 * @param float  $cost Shipping cost amount.
+	 * @return string
+	 */
+	private static function resolve_cost_type( array $row, $key, $cost ) {
+		if ( self::PICKUP_KEY === $key ) {
+			return self::COST_TYPE_FREE;
+		}
+
+		if ( isset( $row['cost_type'] ) ) {
+			return self::normalize_cost_type( $row['cost_type'], $key );
+		}
+
+		// Legacy rows only had a number: any positive amount stays "amount", zero was free.
+		return $cost > 0 ? self::COST_TYPE_AMOUNT : self::COST_TYPE_FREE;
 	}
 
 	/**
@@ -243,8 +355,8 @@ final class Shipping implements ModuleInterface {
 			return false;
 		}
 
-		$has_shippable     = false;
-		$all_special_only  = true;
+		$has_shippable    = false;
+		$all_special_only = true;
 
 		foreach ( $package['contents'] as $item ) {
 			$product = isset( $item['data'] ) ? $item['data'] : null;

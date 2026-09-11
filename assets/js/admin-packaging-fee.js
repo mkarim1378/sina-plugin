@@ -18,5 +18,41 @@
 		sync();
 	}
 
-	Array.prototype.forEach.call(document.querySelectorAll('[data-shipping-method]'), bindSwitch);
+	function bindCostType(container) {
+		var radios = container.querySelectorAll('[data-cost-type]');
+		var amountField = container.querySelector('[data-amount-field]');
+
+		if (!radios.length || !amountField) {
+			return;
+		}
+
+		function sync() {
+			var selected = null;
+
+			Array.prototype.forEach.call(radios, function (radio) {
+				var label = radio.closest('.sina-packaging__cost-type');
+				var checked = radio.checked;
+
+				if (label) {
+					label.classList.toggle('is-selected', checked);
+				}
+
+				if (checked) {
+					selected = radio;
+				}
+			});
+
+			amountField.classList.toggle('is-hidden', !(selected && selected.value === 'amount'));
+		}
+
+		Array.prototype.forEach.call(radios, function (radio) {
+			radio.addEventListener('change', sync);
+		});
+		sync();
+	}
+
+	Array.prototype.forEach.call(document.querySelectorAll('[data-shipping-method]'), function (container) {
+		bindSwitch(container);
+		bindCostType(container);
+	});
 })();

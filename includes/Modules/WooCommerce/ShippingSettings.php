@@ -137,13 +137,14 @@ final class ShippingSettings {
 	}
 
 	/**
-	 * @param string                                                                                 $key      Method key.
-	 * @param array{label: string, enabled: bool, shipping_cost: float, packaging_cost: float} $method   Method values.
-	 * @param string                                                                                 $currency Currency symbol.
+	 * @param string                                                                                              $key      Method key.
+	 * @param array{label: string, enabled: bool, cost_type: string, shipping_cost: float, packaging_cost: float} $method   Method values.
+	 * @param string                                                                                              $currency Currency symbol.
 	 */
 	private function render_method_card( $key, array $method, $currency ) {
 		$is_pickup = Shipping::PICKUP_KEY === $key;
 		$enabled   = ! empty( $method['enabled'] );
+		$cost_type = Shipping::normalize_cost_type( $method['cost_type'], $key );
 		$base      = Shipping::OPTION_METHODS . '[' . $key . ']';
 		?>
 		<article
@@ -157,7 +158,7 @@ final class ShippingSettings {
 						<?php
 						echo $is_pickup
 							? 'هزینه ارسال این گزینه همیشه رایگان است.'
-							: 'هزینه ارسال و بسته‌بندی این روش را جداگانه تنظیم کنید.';
+							: 'نوع هزینه ارسال را انتخاب کنید؛ بسته‌بندی جداگانه تنظیم می‌شود.';
 						?>
 					</p>
 				</div>
@@ -174,12 +175,29 @@ final class ShippingSettings {
 			</div>
 
 			<div class="sina-packaging__costs">
-				<label class="sina-packaging__field">
+				<div class="sina-packaging__field sina-packaging__field--shipping">
 					<span class="sina-packaging__field-label">هزینه ارسال</span>
 					<?php if ( $is_pickup ) : ?>
 						<span class="sina-packaging__free">رایگان</span>
 					<?php else : ?>
-						<span class="sina-packaging__field-control">
+						<div class="sina-packaging__cost-types" role="radiogroup" aria-label="نوع هزینه ارسال">
+							<?php foreach ( Shipping::COST_TYPE_LABELS as $type => $type_label ) : ?>
+								<label class="sina-packaging__cost-type">
+									<input
+										type="radio"
+										name="<?php echo esc_attr( $base ); ?>[cost_type]"
+										value="<?php echo esc_attr( $type ); ?>"
+										<?php checked( $cost_type, $type ); ?>
+										data-cost-type
+									/>
+									<span><?php echo esc_html( $type_label ); ?></span>
+								</label>
+							<?php endforeach; ?>
+						</div>
+						<span
+							class="sina-packaging__field-control sina-packaging__amount<?php echo Shipping::COST_TYPE_AMOUNT === $cost_type ? '' : ' is-hidden'; ?>"
+							data-amount-field
+						>
 							<input
 								type="number"
 								min="0"
@@ -192,7 +210,7 @@ final class ShippingSettings {
 							<span class="sina-packaging__field-suffix"><?php echo esc_html( $currency ); ?></span>
 						</span>
 					<?php endif; ?>
-				</label>
+				</div>
 				<label class="sina-packaging__field">
 					<span class="sina-packaging__field-label">هزینه بسته‌بندی</span>
 					<span class="sina-packaging__field-control">
@@ -245,11 +263,19 @@ final class ShippingSettings {
 
 			$packaging = isset( $row['packaging_cost'] ) ? $row['packaging_cost'] : '';
 			$shipping  = isset( $row['shipping_cost'] ) ? $row['shipping_cost'] : '';
+			$cost_type = isset( $row['cost_type'] ) ? sanitize_key( (string) $row['cost_type'] ) : Shipping::COST_TYPE_FREE;
+			$cost_type = Shipping::normalize_cost_type( $cost_type, $key );
+			$amount    = Shipping::PICKUP_KEY === $key ? 0.0 : (float) wc_format_decimal( $shipping );
+
+			if ( Shipping::COST_TYPE_AMOUNT !== $cost_type ) {
+				$amount = 0.0;
+			}
 
 			$methods[ $key ] = array(
-				'enabled'         => isset( $row['enabled'] ) && 'yes' === $row['enabled'],
-				'shipping_cost'   => Shipping::PICKUP_KEY === $key ? 0.0 : (float) wc_format_decimal( $shipping ),
-				'packaging_cost'  => (float) wc_format_decimal( $packaging ),
+				'enabled'        => isset( $row['enabled'] ) && 'yes' === $row['enabled'],
+				'cost_type'      => $cost_type,
+				'shipping_cost'  => $amount,
+				'packaging_cost' => (float) wc_format_decimal( $packaging ),
 			);
 		}
 
