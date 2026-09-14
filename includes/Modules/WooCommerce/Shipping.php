@@ -133,10 +133,14 @@ final class Shipping implements ModuleInterface {
 			return $label;
 		}
 
-		$cost_type = $method->get_meta( 'sina_cost_type' );
+		$cost_type = self::get_rate_meta( $method, 'sina_cost_type' );
 
 		if ( ! is_string( $cost_type ) || '' === $cost_type ) {
-			$key = $method->get_meta( 'sina_method' );
+			$key = self::get_rate_meta( $method, 'sina_method' );
+
+			if ( ! is_string( $key ) || '' === $key ) {
+				$key = self::method_key_from_rate_id( $method->get_id() );
+			}
 
 			if ( is_string( $key ) && '' !== $key ) {
 				$methods   = self::get_methods();
@@ -318,6 +322,35 @@ final class Shipping implements ModuleInterface {
 	 */
 	public static function rate_id( $key ) {
 		return self::RATE_PREFIX . $key;
+	}
+
+	/**
+	 * WC_Shipping_Rate has get_meta_data(), not get_meta() (unlike WC_Data).
+	 *
+	 * @param \WC_Shipping_Rate $rate Shipping rate.
+	 * @param string            $key  Meta key.
+	 * @return mixed|null
+	 */
+	private static function get_rate_meta( \WC_Shipping_Rate $rate, $key ) {
+		$meta = $rate->get_meta_data();
+
+		return is_array( $meta ) && array_key_exists( $key, $meta ) ? $meta[ $key ] : null;
+	}
+
+	/**
+	 * @param string $rate_id Full rate id (e.g. sina_shipping_post).
+	 * @return string Method key or empty.
+	 */
+	private static function method_key_from_rate_id( $rate_id ) {
+		$rate_id = (string) $rate_id;
+
+		if ( 0 !== strpos( $rate_id, self::RATE_PREFIX ) ) {
+			return '';
+		}
+
+		$key = substr( $rate_id, strlen( self::RATE_PREFIX ) );
+
+		return isset( self::METHOD_LABELS[ $key ] ) ? $key : '';
 	}
 
 	/**
